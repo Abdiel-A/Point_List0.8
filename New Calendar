@@ -2558,14 +2558,45 @@ class CalendarPage(BasePage):
         self.update()
 
 
+    # Añade estos métodos a tu clase CalendarPage
     def _open_date_picker(self):
-        """Método auxiliar para abrir el selector de fecha"""
+        """Método universal para abrir selector de fecha"""
         try:
-            # Intenta con el método estándar
+            # Versión estándar de Flet
             self.new_event_date.pick_date()
         except AttributeError:
-            # Si falla, usa la alternativa
-            self.page.show_dialog(self.new_event_date)
+            # Versiones alternativas
+            try:
+                self.new_event_date.open()
+            except:
+                # Método universal
+                self.page.dialog = self.new_event_date
+                self.new_event_date.open = True
+                self.page.update()
+
+    def _open_start_time_picker(self):
+        """Método universal para abrir selector de hora de inicio"""
+        try:
+            self.new_event_start_time.pick_time()
+        except AttributeError:
+            try:
+                self.new_event_start_time.open()
+            except:
+                self.page.dialog = self.new_event_start_time
+                self.new_event_start_time.open = True
+                self.page.update()
+
+    def _open_end_time_picker(self):
+        """Método universal para abrir selector de hora de fin"""
+        try:
+            self.new_event_end_time.pick_time()
+        except AttributeError:
+            try:
+                self.new_event_end_time.open()
+            except:
+                self.page.dialog = self.new_event_end_time
+                self.new_event_end_time.open = True
+                self.page.update()
 
 
 
@@ -3412,7 +3443,7 @@ class CalendarPage(BasePage):
                         ft.Text("Añadir nuevo evento", size=18, weight=ft.FontWeight.BOLD),
                         self.new_event_title,
                         
-                        # Campo de fecha seleccionable (versión corregida)
+                        # Campo de fecha seleccionable
                         ft.Row(
                             controls=[
                                 ft.Text("Fecha:", width=80),
@@ -3436,13 +3467,13 @@ class CalendarPage(BasePage):
                             ]
                         ),
                         
-                        # Campo de hora de inicio seleccionable (versión corregida)
+                        # Campo de hora de inicio seleccionable
                         ft.Row(
                             controls=[
                                 ft.Text("Hora inicio:", width=80),
                                 ft.IconButton(
                                     icon=ft.Icons.ACCESS_TIME,
-                                    on_click=lambda _: self.new_event_start_time.pick_time(),
+                                    on_click=lambda _: self._open_start_time_picker(),
                                     tooltip="Seleccionar hora"
                                 ),
                                 ft.TextField(
@@ -3454,13 +3485,47 @@ class CalendarPage(BasePage):
                                     suffix=ft.IconButton(
                                         icon=ft.Icons.EDIT,
                                         icon_size=16,
-                                        on_click=lambda _: self.new_event_start_time.pick_time()
+                                        on_click=lambda _: self._open_start_time_picker()
                                     )
                                 )
                             ]
                         ),
                         
-                        # Resto del formulario...
+                        # Campo de hora de fin seleccionable
+                        ft.Row(
+                            controls=[
+                                ft.Text("Hora fin:", width=80),
+                                ft.IconButton(
+                                    icon=ft.Icons.ACCESS_TIME,
+                                    on_click=lambda _: self._open_end_time_picker(),
+                                    tooltip="Seleccionar hora"
+                                ),
+                                ft.TextField(
+                                    value=self.new_event_end_time.value.strftime('%H:%M'),
+                                    read_only=True,
+                                    width=80,
+                                    filled=True,
+                                    bgcolor=self.colors["light"],
+                                    suffix=ft.IconButton(
+                                        icon=ft.Icons.EDIT,
+                                        icon_size=16,
+                                        on_click=lambda _: self._open_end_time_picker()
+                                    )
+                                )
+                            ]
+                        ),
+                        
+                        self.new_event_type,
+                        self.new_event_reminder,
+                        self.new_event_description,
+                        
+                        ft.FilledButton(
+                            "Guardar evento",
+                            on_click=self._save_new_event,
+                            icon=ft.Icons.SAVE,
+                            width=200,
+                            style=ft.ButtonStyle(bgcolor=self.colors["primary"])
+                        )
                     ],
                     spacing=12
                 )
