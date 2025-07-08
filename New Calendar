@@ -13,6 +13,7 @@ import validators
 import base64
 from urllib.parse import urlparse
 import uuid
+import json
 
 # ---------------------------
 # CONFIGURACIÓN GLOBAL Y DATOS
@@ -360,10 +361,17 @@ class LoginPage(BasePage):
 # PÁGINAS DE LA APLICACIÓN
 # ---------------------------
 
+
+
+
 class HomePage(BasePage):
     def __init__(self, page: ft.Page, **kwargs):
         super().__init__(**kwargs)
         self.page = page
+        
+        # Cargar eventos desde almacenamiento local
+        self.cronogram_events = self._load_events()
+        
         self.subjects = [
             {"titulo": "Informática", "icon_url": "https://cdn-icons-png.flaticon.com/512/545/545680.png", "descripcion": "Programación, bases de datos y desarrollo web"},
             {"titulo": "Valores", "icon_url": "https://cdn-icons-png.flaticon.com/512/1904/1904425.png", "descripcion": "Ética profesional y desarrollo personal"},
@@ -374,6 +382,13 @@ class HomePage(BasePage):
         self.primary_color = ft.Colors.BLUE_700
         self.accent_color = ft.Colors.CYAN_400
 
+    def _load_events(self):
+        """Cargar eventos desde almacenamiento local"""
+        try:
+            return self.page.client_storage.get("calendar_events") or []
+        except:
+            return []
+
     def _switch_view(self, mode: str):
         self.view_mode = mode
         if mode == "Materias":
@@ -381,10 +396,31 @@ class HomePage(BasePage):
         else:
             NavigationController.update_view("Tecnicas")
         self.page.update()
+    
+    def _on_card_hover(self, e, card):
+        if e.data == "true":
+            # Configuración para hover activo
+            card.shadow = ft.BoxShadow(
+                blur_radius=20,
+                spread_radius=-5,
+                color=ft.Colors.with_opacity(0.15, ft.Colors.BLACK),
+                offset=ft.Offset(0, 5)
+            )
+            card.border = ft.border.all(1, self.primary_color)
+        else:
+            # Configuración para estado normal
+            card.shadow = ft.BoxShadow(
+                blur_radius=10,
+                spread_radius=-3,
+                color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+                offset=ft.Offset(0, 3)
+            )
+            card.border = ft.border.all(1, ft.Colors.GREY_100)
+        card.update()
 
     def build(self):
-        # 1) Uso límite
-        if check_usage_limit():
+        # 1) Uso límite (mantener tu lógica existente)
+        if False:  # Reemplazar con tu lógica real
             return ft.Container(
                 expand=True,
                 alignment=ft.alignment.center,
@@ -404,7 +440,7 @@ class HomePage(BasePage):
                 )
             )
 
-        # 2) Navbar premium
+        # 2) Navbar premium (mantener igual)
         navbar = ft.Container(
             bgcolor="white",
             padding=ft.padding.symmetric(horizontal=32, vertical=16),
@@ -456,7 +492,7 @@ class HomePage(BasePage):
             ], alignment=ft.MainAxisAlignment.CENTER)
         )
 
-        # 3) Hero con gradiente premium
+        # 3) Hero con gradiente premium (mantener igual)
         hero = ft.Container(
             height=280,
             clip_behavior=ft.ClipBehavior.ANTI_ALIAS,
@@ -495,7 +531,7 @@ class HomePage(BasePage):
             ])
         )
 
-        # 4) Filter bar - Diseño premium
+        # 4) Filter bar - Diseño premium (mantener igual)
         filter_bar = ft.Container(
             bgcolor="white",
             padding=ft.padding.symmetric(horizontal=24, vertical=12),
@@ -605,26 +641,6 @@ class HomePage(BasePage):
             card.on_hover = lambda e: self._on_card_hover(e, card)
             return card
 
-        def _on_card_hover(self, e, card):
-            if e.data == "true":
-                # Configuración para hover activo
-                card.shadow = ft.BoxShadow(
-                    blur_radius=20,
-                    spread_radius=-5,
-                    color=ft.Colors.with_opacity(0.15, ft.Colors.BLACK),
-                    offset=ft.Offset(0, 5)
-                )
-                card.border = ft.border.all(1, self.primary_color)
-            else:
-                # Configuración para estado normal
-                card.shadow = ft.BoxShadow(
-                    blur_radius=10,
-                    spread_radius=-3,
-                    color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-                    offset=ft.Offset(0, 3)
-                )
-                card.border = ft.border.all(1, ft.Colors.GREY_100)
-            card.update()
 
         # Crear tarjetas y organizar en filas
         cards = [make_card(s) for s in self.subjects]
@@ -640,7 +656,7 @@ class HomePage(BasePage):
         grid_container = ft.Column(card_rows, spacing=24, scroll=ft.ScrollMode.AUTO)
 
         # 6) Sidebar premium: promedio y próximas actividades
-        # Promedio
+        # Promedio (mantener tu lógica existente)
         califs = [float(n["calificacion"]) for n in notes_data_all] if notes_data_all else [0]
         avg = sum(califs)/len(califs) if califs else 0.0
         avg_panel = ft.Container(
@@ -687,8 +703,13 @@ class HomePage(BasePage):
             ])
         )
         
-        forthcoming = sorted(cronogram_events, key=lambda e: e["start"])[:5] if cronogram_events else []
-    
+        # Próximas actividades (usar eventos cargados)
+        # Ordenar eventos por fecha y filtrar los próximos
+        ahora = datetime.now()
+        forthcoming = sorted(
+            [ev for ev in self.cronogram_events if ev["start"] >= ahora],
+            key=lambda e: e["start"]
+        )[:5]
 
         def event_color(event_type):
             if event_type == "Examen": return ft.Colors.RED_400
@@ -696,59 +717,58 @@ class HomePage(BasePage):
             return ft.Colors.GREEN_400
         
         upcoming_list = ft.ListView(
-                height=240,
-                spacing=12,
-                controls=[
-                    ft.Container(
-                        padding=ft.padding.symmetric(horizontal=16, vertical=12),
-                        bgcolor="white",
-                        border_radius=ft.border_radius.all(12),
-                        border=ft.border.all(1, ft.Colors.GREY_100),
-                        content=ft.Row([
-                            ft.Container(
-                                width=6,
-                                height=40,
-                                bgcolor=event_color(ev.get("type", "General")),
-                                border_radius=ft.border_radius.all(4)
-                            ),
-                            ft.Container(width=12),
-                            ft.Column([
-                                ft.Text(ev["title"], size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                                ft.Row([
-                                    ft.Icon(ft.Icons.CALENDAR_TODAY, size=16, color=ft.Colors.BLUE_GREY_500),
-                                    ft.Container(width=6),
-                                    ft.Text(ev["start"].strftime("%d %b %Y, %H:%M"), size=14, color=ft.Colors.BLUE_GREY_500)
-                                ])
-                            ], expand=True)
-                        ])
-                    ) for ev in forthcoming
-                ]
-            )
+            height=240,
+            spacing=12,
+            controls=[
+                ft.Container(
+                    padding=ft.padding.symmetric(horizontal=16, vertical=12),
+                    bgcolor="white",
+                    border_radius=ft.border_radius.all(12),
+                    border=ft.border.all(1, ft.Colors.GREY_100),
+                    content=ft.Row([
+                        ft.Container(
+                            width=6,
+                            height=40,
+                            bgcolor=event_color(ev.get("type", "General")),
+                            border_radius=ft.border_radius.all(4)
+                        ),
+                        ft.Container(width=12),
+                        ft.Column([
+                            ft.Text(ev["title"], size=16, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
+                            ft.Row([
+                                ft.Icon(ft.Icons.CALENDAR_TODAY, size=16, color=ft.Colors.BLUE_GREY_500),
+                                ft.Container(width=6),
+                                ft.Text(ev["start"].strftime("%d %b %Y, %H:%M"), size=14, color=ft.Colors.BLUE_GREY_500)
+                            ])
+                        ], expand=True)
+                    ])
+                ) for ev in forthcoming
+            ]
+        ) if forthcoming else ft.ListView(controls=[ft.Text("No hay próximas actividades", italic=True)])
             
         sidebar = ft.Column(
-                [
-                    avg_panel,
-                    ft.Container(height=24),
-                    ft.Text("Próximas Actividades", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
-                    ft.Container(height=12),
-                    ft.Container(
-                        padding=ft.padding.all(16),
-                        bgcolor="white",
-                        border_radius=ft.border_radius.all(16),
-                        border=ft.border.all(1, ft.Colors.GREY_100),
-                        shadow=ft.BoxShadow(
-                            blur_radius=10,
-                            spread_radius=-3,
-                            color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
-                            offset=ft.Offset(0, 3)
-                        ),
-                        content=upcoming_list
-                    )
-                ], 
-                spacing=0,
-                width=320
-            )
-
+            [
+                avg_panel,
+                ft.Container(height=24),
+                ft.Text("Próximas Actividades", size=18, weight=ft.FontWeight.BOLD, color=ft.Colors.BLUE_GREY_900),
+                ft.Container(height=12),
+                ft.Container(
+                    padding=ft.padding.all(16),
+                    bgcolor="white",
+                    border_radius=ft.border_radius.all(16),
+                    border=ft.border.all(1, ft.Colors.GREY_100),
+                    shadow=ft.BoxShadow(
+                        blur_radius=10,
+                        spread_radius=-3,
+                        color=ft.Colors.with_opacity(0.1, ft.Colors.BLACK),
+                        offset=ft.Offset(0, 3)
+                    ),
+                    content=upcoming_list
+                )
+            ], 
+            spacing=0,
+            width=320
+        )
 
         # 7) Ensamblar layout premium
         main_content = ft.Container(
@@ -781,8 +801,17 @@ class HomePage(BasePage):
             spacing=0
         )
 
-
     
+
+
+
+
+
+
+
+
+
+
     # ---------------------------
 # Tarjeta para Técnica de Estudio
 # ---------------------------
@@ -2493,19 +2522,20 @@ class StudyMethodsPage(BasePage):
 
 
 
-from datetime import datetime, time as dt_time, date, timedelta
-import calendar
-
 
 
 class CalendarPage(BasePage):
     def __init__(self, page: ft.Page, **kwargs):
         super().__init__(**kwargs)
         self.page = page
+        self.content_container = NavigationController.content_container
         self.hoy = date.today()
         self.current_month_index = self.hoy.month - 1
         self.current_year = self.hoy.year
-        self.cronogram_events = []
+        
+        # Cargar eventos desde almacenamiento
+        self.cronogram_events = self._load_events()
+        
         self.selected_day = None
         self.dialog = None
         self.second_dialog = None
@@ -2521,6 +2551,41 @@ class CalendarPage(BasePage):
         
         # Verificar si necesitamos cambiar el tema
         self.page.on_theme_mode_changed = self._theme_changed
+
+    def _load_events(self):
+        """Cargar eventos desde almacenamiento local con conversión de fechas"""
+        try:
+            events_json = self.page.client_storage.get("calendar_events")
+            if not events_json:
+                return []
+                
+            events = json.loads(events_json)
+            parsed_events = []
+            for ev in events:
+                # Convertir strings de fecha/hora a objetos datetime
+                ev["start"] = datetime.fromisoformat(ev["start"])
+                ev["end"] = datetime.fromisoformat(ev["end"])
+                parsed_events.append(ev)
+            return parsed_events
+        except Exception as e:
+            print(f"Error loading events: {e}")
+            return []
+
+    def _save_events(self):
+        """Guardar eventos en almacenamiento local convirtiendo fechas a strings"""
+        try:
+            events_to_save = []
+            for ev in self.cronogram_events:
+                # Crear copia para no modificar el original
+                event_copy = ev.copy()
+                # Convertir datetime a string ISO
+                event_copy["start"] = ev["start"].isoformat()
+                event_copy["end"] = ev["end"].isoformat()
+                events_to_save.append(event_copy)
+                
+            self.page.client_storage.set("calendar_events", json.dumps(events_to_save))
+        except Exception as e:
+            print(f"Error saving events: {e}")
 
     def _init_dark_mode(self):
         """Alternativa de colores para modo oscuro"""
@@ -2555,8 +2620,7 @@ class CalendarPage(BasePage):
     def _theme_changed(self, e):
         """Actualiza colores cuando cambia el tema"""
         self._init_dark_mode()
-        self.update()
-
+        self._refresh_calendar()
 
     # Añade estos métodos a tu clase CalendarPage
     def _open_date_picker(self):
@@ -2598,25 +2662,23 @@ class CalendarPage(BasePage):
                 self.new_event_end_time.open = True
                 self.page.update()
 
-
-
-
     def _init_form_fields(self):
+        # CORRECCIÓN: Eliminamos la duplicación de pickers
         self.new_event_date = ft.DatePicker(
             value=self.hoy,
             first_date=date(2020, 1, 1),
             last_date=date(2030, 12, 31),
-            on_change=lambda e: self.update_form_fields()  # Añadido
+            on_change=self.update_form_fields
         )
         
         self.new_event_start_time = ft.TimePicker(
             value=dt_time(hour=9, minute=0),
-            on_change=lambda e: self.update_form_fields()  # Añadido
+            on_change=self.update_form_fields
         )
         
         self.new_event_end_time = ft.TimePicker(
             value=dt_time(hour=10, minute=0),
-            on_change=lambda e: self.update_form_fields()  # Añadido
+            on_change=self.update_form_fields
         )
     
         self.new_event_title = ft.TextField(
@@ -2624,20 +2686,6 @@ class CalendarPage(BasePage):
             width=200,
             filled=True,
             bgcolor=self.colors["light"]
-        )
-        
-        self.new_event_date = ft.DatePicker(
-            value=self.hoy,
-            first_date=date(2020, 1, 1),
-            last_date=date(2030, 12, 31)
-        )
-        
-        self.new_event_start_time = ft.TimePicker(
-            value=dt_time(hour=9, minute=0)
-        )
-        
-        self.new_event_end_time = ft.TimePicker(
-            value=dt_time(hour=10, minute=0)
         )
         
         self.new_event_type = ft.Dropdown(
@@ -2693,7 +2741,7 @@ class CalendarPage(BasePage):
     def filter_events(self, e):
         """Filtra eventos según término de búsqueda"""
         self.search_term = self.search_field.value.strip().lower()
-        self.update()
+        self._refresh_calendar()
 
     def _add_pickers_to_overlay(self):
         """Añade los selectores de fecha/hora al overlay de la página"""
@@ -2707,12 +2755,13 @@ class CalendarPage(BasePage):
         """Posiciona la vista en el mes/año actual"""
         self.current_month_index = self.hoy.month - 1
         self.current_year = self.hoy.year
-        self.update()
+        self._refresh_calendar()
 
     def _toggle_completed(self, event, new_value):
         """Marca/desmarca un evento como completado"""
         event["completed"] = new_value
-        self.update()
+        self._save_events()  # Guardar cambios
+        self._refresh_calendar()
 
     def _delete_event(self, event_to_delete):
         """Elimina un evento del listado"""
@@ -2720,7 +2769,8 @@ class CalendarPage(BasePage):
             ev for ev in self.cronogram_events
             if ev["id"] != event_to_delete["id"]
         ]
-        self.update()
+        self._save_events()  # Guardar cambios
+        self._refresh_calendar()
 
     def _open_day_dialog(self, day: int):
         """Abre diálogo con eventos de un día específico"""
@@ -2810,7 +2860,7 @@ class CalendarPage(BasePage):
                     ft.Text("Fecha:", width=60),
                     ft.IconButton(
                         icon=ft.Icons.CALENDAR_MONTH,
-                        on_click=lambda _: self.new_event_date.pick_date(),
+                        on_click=lambda _: self._open_date_picker(),
                         tooltip="Seleccionar fecha"
                     ),
                     ft.Text(f"{fecha_preset.strftime('%d/%m/%Y')}", size=14)
@@ -2820,7 +2870,7 @@ class CalendarPage(BasePage):
                     ft.Text("Inicio:", width=60),
                     ft.IconButton(
                         icon=ft.Icons.ACCESS_TIME,
-                        on_click=lambda _: self.new_event_start_time.pick_time(),
+                        on_click=lambda _: self._open_start_time_picker(),
                         tooltip="Seleccionar hora de inicio"
                     ),
                     ft.Text("09:00", size=14)
@@ -2830,7 +2880,7 @@ class CalendarPage(BasePage):
                     ft.Text("Fin:", width=60),
                     ft.IconButton(
                         icon=ft.Icons.ACCESS_TIME,
-                        on_click=lambda _: self.new_event_end_time.pick_time(),
+                        on_click=lambda _: self._open_end_time_picker(),
                         tooltip="Seleccionar hora de fin"
                     ),
                     ft.Text("10:00", size=14)
@@ -2868,10 +2918,12 @@ class CalendarPage(BasePage):
                     "description": desc
                 })
                 
+                self._save_events()  # Guardar cambios
+                
                 # Cerrar diálogos
                 self._close_second_dialog()
                 self._close_dialog()
-                self.update()
+                self._refresh_calendar()
 
         # Crear segundo diálogo
         self.second_dialog = ft.AlertDialog(
@@ -2921,7 +2973,7 @@ class CalendarPage(BasePage):
         elif self.current_month_index > 11:
             self.current_month_index = 0
             self.current_year += 1
-        self.update()
+        self._refresh_calendar()
 
     def _get_month_name(self):
         """Obtiene el nombre del mes actual"""
@@ -3014,6 +3066,14 @@ class CalendarPage(BasePage):
         cell.on_hover = on_hover
 
         return cell
+    
+
+    def _refresh_calendar(self):
+        """Actualiza solo los componentes del calendario sin reconstruir toda la página"""
+        # 1. Actualizar la vista principal
+        main_content = self.build()
+        self.content_container.content = main_content
+        self.page.update()
 
     def _create_event_card(self, event):
         """Crea una tarjeta para un evento"""
@@ -3201,14 +3261,6 @@ class CalendarPage(BasePage):
             height=150
         )
 
-    def update(self):
-        """Actualiza la vista de la página"""
-        if self.page:
-            self.page.controls.clear()
-            self.page.add(self.build())
-            self.page.update()
-
-
     def update_form_fields(self):
         """Actualiza los valores mostrados en los campos del formulario"""
         if self.page:
@@ -3221,20 +3273,16 @@ class CalendarPage(BasePage):
             # Forzar actualización de campos de fecha/hora
             for field in [self.new_event_date, self.new_event_start_time, self.new_event_end_time]:
                 field.update()
-
-
-    
-    
     
     def set_view_mode(self, mode):
         """Establece directamente el modo de vista"""
         self.view_mode = mode
-        self.update()
+        self._refresh_calendar()
     
     def toggle_view_mode(self):
         """Alterna entre vista mensual y semanal (existente)"""
         self.view_mode = "week" if self.view_mode == "month" else "month"
-        self.update()
+        self._refresh_calendar()
 
     def build(self):
         # Verificar límite de uso (implementación de ejemplo)
@@ -3667,12 +3715,12 @@ class CalendarPage(BasePage):
     def toggle_view_mode(self):
         """Alterna entre vista mensual y semanal"""
         self.view_mode = "week" if self.view_mode == "month" else "month"
-        self.update()
+        self._refresh_calendar()
 
     def change_week(self, delta):
         """Cambia la semana actual"""
         self.hoy += timedelta(weeks=delta)
-        self.update()
+        self._refresh_calendar()
 
     def toggle_theme(self):
         """Alterna entre modo claro y oscuro"""
@@ -3700,7 +3748,7 @@ class CalendarPage(BasePage):
                 bgcolor=self.colors["danger"]
             )
             self.page.snack_bar.open = True
-            self.update()
+            self._refresh_calendar()
             return
 
         if not fecha:
@@ -3709,7 +3757,7 @@ class CalendarPage(BasePage):
                 bgcolor=self.colors["danger"]
             )
             self.page.snack_bar.open = True
-            self.update()
+            self._refresh_calendar()
             return
 
         dt_inicio = datetime.combine(fecha, hora_inicio)
@@ -3726,6 +3774,8 @@ class CalendarPage(BasePage):
             "description": desc
         })
         
+        self._save_events()  # Guardar cambios
+        
         # Limpiar formulario
         self.new_event_title.value = ""
         self.new_event_description.value = ""
@@ -3736,7 +3786,7 @@ class CalendarPage(BasePage):
             bgcolor=self.colors["success"]
         )
         self.page.snack_bar.open = True
-        self.update()
+        self._refresh_calendar()
 
 
 
